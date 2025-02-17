@@ -6,7 +6,7 @@ plugins {
     signing
     checkstyle
     `maven-publish`
-    id("fabric-loom") version "1.6-SNAPSHOT"
+    id("fabric-loom") version "1.7-SNAPSHOT"
     id("com.modrinth.minotaur") version "2.+"
 }
 

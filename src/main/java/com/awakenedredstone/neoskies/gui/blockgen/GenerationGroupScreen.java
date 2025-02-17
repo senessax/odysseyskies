@@ -92,7 +92,6 @@ public class GenerationGroupScreen extends PagedGui {
         selectedElement = item;
         return new CBGuiElementBuilder(Items.TNT_MINECART)
           .addLoreLine(Texts.loreBase("gui.neoskies.block_gen.block.delete.tooltip"))
-          .enchant(Enchantments.UNBREAKING, 1)
           .applyComponent(DataComponentTypes.ENCHANTMENTS, comp -> comp.withShowInTooltip(false))
           .setName(Texts.translatable("gui.neoskies.block_gen.block.delete"))
           .setCallback((index, type, action, gui) -> {

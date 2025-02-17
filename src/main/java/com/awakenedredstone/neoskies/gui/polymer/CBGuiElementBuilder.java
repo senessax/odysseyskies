@@ -7,7 +7,7 @@ import com.mojang.authlib.properties.PropertyMap;
 import eu.pb4.sgui.api.elements.GuiElement;
 import eu.pb4.sgui.api.elements.GuiElementBuilder;
 import eu.pb4.sgui.api.elements.GuiElementInterface;
-import net.minecraft.component.DataComponentType;
+import net.minecraft.component.ComponentType;
 import net.minecraft.component.DataComponentTypes;
 import net.minecraft.component.type.CustomModelDataComponent;
 import net.minecraft.component.type.LoreComponent;
@@ -16,6 +16,7 @@ import net.minecraft.component.type.UnbreakableComponent;
 import net.minecraft.enchantment.Enchantment;
 import net.minecraft.item.Item;
 import net.minecraft.item.ItemStack;
+import net.minecraft.registry.entry.RegistryEntry;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.text.Text;
 import net.minecraft.util.Rarity;
@@ -209,12 +210,12 @@ public class CBGuiElementBuilder extends GuiElementBuilder {
         return this;
     }
 
-    public <T> CBGuiElementBuilder setComponent(DataComponentType<T> type, @Nullable T value) {
+    public <T> CBGuiElementBuilder setComponent(ComponentType<T> type, @Nullable T value) {
         this.itemStack.set(type, value);
         return this;
     }
 
-    public <T> CBGuiElementBuilder applyComponent(DataComponentType<T> type, UnaryOperator<T> applier) {
+    public <T> CBGuiElementBuilder applyComponent(ComponentType<T> type, UnaryOperator<T> applier) {
         this.itemStack.apply(type, null, comp -> comp != null ? applier.apply(comp) : null);
         return this;
     }
@@ -253,7 +254,7 @@ public class CBGuiElementBuilder extends GuiElementBuilder {
      * @param level       the level of the specified enchantment
      * @return this element builder
      */
-    public CBGuiElementBuilder enchant(Enchantment enchantment, int level) {
+    public GuiElementBuilder enchant(RegistryEntry<Enchantment> enchantment, int level) {
         this.itemStack.addEnchantment(enchantment, level);
         return this;
     }

@@ -4,7 +4,8 @@ import com.awakenedredstone.neoskies.duck.ExtendedChunk;
 import com.awakenedredstone.neoskies.logic.Island;
 import com.awakenedredstone.neoskies.logic.IslandLogic;
 import com.awakenedredstone.neoskies.logic.Member;
-import com.awakenedredstone.neoskies.mixin.accessor.RegionBasedStorageAccessor;
+import com.awakenedredstone.neoskies.mixin.accessor.IRegionBasedStorageAccessor;
+import com.awakenedredstone.neoskies.mixin.accessor.ServerChunkManagerAccessor;
 import com.awakenedredstone.neoskies.util.Texts;
 import com.ezylang.evalex.EvaluationException;
 import com.ezylang.evalex.parser.ParseException;
@@ -14,17 +15,14 @@ import net.minecraft.registry.Registries;
 import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.server.world.ChunkHolder;
 import net.minecraft.server.world.ServerWorld;
-import net.minecraft.server.world.ThreadedAnvilChunkStorage;
+import net.minecraft.server.world.ServerChunkManager;
 import net.minecraft.util.Identifier;
 import net.minecraft.util.crash.CrashException;
 import net.minecraft.util.crash.CrashReport;
 import net.minecraft.util.math.ChunkPos;
 import net.minecraft.util.math.ChunkSectionPos;
 import net.minecraft.world.ChunkSerializer;
-import net.minecraft.world.chunk.Chunk;
-import net.minecraft.world.chunk.ChunkSection;
-import net.minecraft.world.chunk.PalettedContainer;
-import net.minecraft.world.chunk.ProtoChunk;
+import net.minecraft.world.chunk.*;
 import net.minecraft.world.poi.PointOfInterestStorage;
 import net.minecraft.world.storage.RegionBasedStorage;
 import net.minecraft.world.storage.RegionFile;
@@ -37,6 +35,7 @@ import org.slf4j.LoggerFactory;
 import java.io.File;
 import java.io.IOException;
 import java.nio.IntBuffer;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
@@ -133,9 +132,9 @@ public class IslandScanner implements AutoCloseable {
         int chunkCount = 0;
 
         for (ServerWorld world : worlds) {
-            ThreadedAnvilChunkStorage anvilChunkStorage = world.getChunkManager().threadedAnvilChunkStorage;
-            RegionBasedStorage storage = ((StorageIoWorker) anvilChunkStorage.getWorker()).storage;
-            RegionBasedStorageAccessor storageAccessor = (RegionBasedStorageAccessor) (Object) storage;
+            ServerChunkManager chunkManager = world.getChunkManager();
+            RegionBasedStorage storage = ((StorageIoWorker) chunkManager.getChunkIoWorker()).storage;
+            IRegionBasedStorageAccessor storageAccessor = (IRegionBasedStorageAccessor) (Object) storage;
             assert storageAccessor != null;
 
             List<Long> positions = new ArrayList<>();
@@ -186,129 +185,158 @@ public class IslandScanner implements AutoCloseable {
         AtomicInteger remaining = new AtomicInteger(chunkCount);
         final int finalChunkCount = chunkCount;
 
-        PointOfInterestStorage poiStorage = new PointOfInterestStorage(new StorageKey("", null, ""), null, null, false, null, null) {
-            @Override
-            public void initForPalette(ChunkSectionPos sectionPos, ChunkSection chunkSection) { }
-        };
 
-        //TODO: make threads scan regions instead of a single chunk
+        // TODO: make threads scan regions instead of a single chunk
         List<CompletableFuture<Void>> futures = Collections.synchronizedList(new ArrayList<>());
+
         for (Map.Entry<ServerWorld, List<Long>> entry : toScan.entrySet()) {
             List<Long> positions = entry.getValue();
-            ServerWorld world = entry.getKey();
+            ServerWorld world = entry.getKey(); // Ensure world is declared here
 
-            List<Long> scannedChunks = new ArrayList<>();
-            ThreadedAnvilChunkStorage anvilChunkStorage = world.getChunkManager().threadedAnvilChunkStorage;
-            for (ChunkHolder chunkHolder : anvilChunkStorage.chunkHolders.values().stream().filter(ChunkHolder::isAccessible).peek(ChunkHolder::updateAccessibleStatus).toList()) {
-                ChunkPos pos = chunkHolder.getPos();
-                if (scannedChunks.contains((long) pos.x >> 32 | (long) pos.z << 32 >>> 32)) {
-                    continue;
+            // Wrap poiStorage instantiation in try-finally
+            try (PointOfInterestStorage poiStorage = new PointOfInterestStorage(
+              new StorageKey("", null, ""),  // StorageKey
+              Path.of(""),                   // Directory path
+              null,                           // DataFixer (Replace null if you have one)
+              false,                          // dsync
+              null,                           // DynamicRegistryManager (Replace null if needed)
+              null,                           // ChunkErrorHandler (Replace null if needed)
+              world                           // HeightLimitView (Required)
+            ) {
+                @Override
+                public void initForPalette(ChunkSectionPos sectionPos, ChunkSection chunkSection) { }
+            }) {
+
+                List<Long> scannedChunks = new ArrayList<>();
+                ServerChunkManager chunkManager = world.getChunkManager();
+
+                List<ChunkHolder> chunkHolders = new ArrayList<>();
+                for (long pos : positions) {
+                    chunkManager.getChunkHolderPublic(pos).ifPresent(chunkHolders::add);
                 }
-                if (!positions.contains((long) pos.x >> 32 | (long) pos.z << 32 >>> 32)) {
-                    throw new RuntimeException("Chunk [%s,%s]{%s} was not in the scan queue".formatted(pos.x, pos.z, (long) pos.x >> 32 | pos.z));
-                }
-                scannedChunks.add((long) pos.x >> 32 | (long) pos.z << 32 >>> 32);
-                positions.remove((long) pos.x >> 32 | (long) pos.z << 32 >>> 32);
-                scanChunk(chunkHolder.getCurrentChunk(), blocks);
 
-                remaining.decrementAndGet();
-                long now = System.nanoTime() / 1000;
-                if (now - lastUpdate.get() >= 100_000) {
-                    lastUpdate.set(now);
-                    int scanned = finalChunkCount - remaining.get();
-                    IslandLogic.runOnNextTick(() -> setup.progressListener.accept(scanned));
-                }
-            }
-            scannedChunks.clear();
 
-            for (Long position : positions) {
-                int x = (int) (position >> 32);
-                int z = position.intValue(); //Same as (int) (position & 0xffffffffL)
-                ChunkPos pos = new ChunkPos(x, z);
+                for (ChunkHolder chunkHolder : chunkHolders.stream()
+                  .filter(ChunkHolder::isAccessible)
+                  .peek(ChunkHolder::updateAccessibleStatus)
+                  .toList()) {
 
-                CompletableFuture<Void> future = new CompletableFuture<>();
-                futures.add(future);
-
-                CompletableFuture<Optional<NbtCompound>> nbt = anvilChunkStorage.getNbt(pos);
-                scanExecutor.submit(() -> {
-                    Optional<NbtCompound> compound;
-                    try {
-                        compound = nbt.join();
-                    } catch (Exception e) {
-                        LOGGER.error("Error on {}, failed to get chunk data", pos, e);
-                        return;
+                    ChunkPos pos = chunkHolder.getPos();
+                    if (scannedChunks.contains((long) pos.x << 32 | (long) pos.z & 0xFFFFFFFFL)) {
+                        continue;
                     }
-
-                    if (failed.get()) {
-                        future.complete(null);
-                        return;
+                    if (!positions.contains((long) pos.x << 32 | (long) pos.z & 0xFFFFFFFFL)) {
+                        throw new RuntimeException("Chunk [%s,%s]{%s} was not in the scan queue"
+                          .formatted(pos.x, pos.z, (long) pos.x << 32 | (long) pos.z & 0xFFFFFFFFL));
                     }
-                    if (scannedChunks.contains(position)) {
-                        LOGGER.error("Tried to scan {} twice, giving up!", pos);
-                        throw new RuntimeException("Scanned chunk twice");
-                    }
-                    scannedChunks.add(position);
-                    if (compound.isEmpty()) {
-                        LOGGER.warn("Missing chunk data for chunk {}", pos);
-                        return;
-                    }
+                    scannedChunks.add((long) pos.x << 32 | (long) pos.z & 0xFFFFFFFFL);
+                    positions.remove((long) pos.x << 32 | (long) pos.z & 0xFFFFFFFFL);
 
-                    NbtCompound nbtData = compound.get();
-
-                    try {
-                        if (failed.get()) {
-                            future.complete(null);
-                            return;
-                        }
-                        ProtoChunk chunk = ChunkSerializer.deserialize(world, poiStorage, pos, nbtData);
-                        if (failed.get()) {
-                            future.complete(null);
-                            return;
-                        }
+                    Chunk chunk = chunkManager.getChunk(pos.x, pos.z, ChunkStatus.FULL, false);
+                    if (chunk != null) {
                         scanChunk(chunk, blocks);
-                        chunk = null; //Make sure GC can get this earlier, if it runs while this runs than this won't be wasting RAM
-                    } catch (Throwable e) {
-                        LOGGER.error("Failed to deserialize chunk {} with data of size {}", pos, nbtData.getSize());
-                        failed.set(true);
-                        future.completeExceptionally(e);
-                        throw e;
                     }
 
-                    if (failed.get()) {
-                        future.complete(null);
-                        return;
-                    }
-                    int threadSafeRemaining = remaining.decrementAndGet();
-
+                    remaining.decrementAndGet();
                     long now = System.nanoTime() / 1000;
                     if (now - lastUpdate.get() >= 100_000) {
+                        lastUpdate.set(now);
+                        int scanned = finalChunkCount - remaining.get();
+                        IslandLogic.runOnNextTick(() -> setup.progressListener.accept(scanned));
+                    }
+                }
+                scannedChunks.clear();
+
+                for (Long position : positions) {
+                    int x = (int) (position >> 32);
+                    int z = position.intValue(); // Same as (int) (position & 0xffffffffL)
+                    ChunkPos pos = new ChunkPos(x, z);
+
+                    CompletableFuture<Void> future = new CompletableFuture<>();
+                    futures.add(future);
+
+                    StorageIoWorker storageWorker = (StorageIoWorker) world.getChunkManager().getChunkIoWorker();
+                    CompletableFuture<Optional<NbtCompound>> nbt = storageWorker.readChunkData(pos);
+                    scanExecutor.submit(() -> {
+                        Optional<NbtCompound> compound;
+                        try {
+                            compound = nbt.join();
+                        } catch (Exception e) {
+                            LOGGER.error("Error on {}, failed to get chunk data", pos, e);
+                            return;
+                        }
+
                         if (failed.get()) {
                             future.complete(null);
                             return;
                         }
-                        lastUpdate.set(now);
-                        int scanned = finalChunkCount - threadSafeRemaining;
-                        IslandLogic.runOnNextTick(() -> {
-                            if (failed.get()) return;
-                            setup.progressListener.accept(scanned);
-                        });
-                    }
+                        if (scannedChunks.contains(position)) {
+                            LOGGER.error("Tried to scan {} twice, giving up!", pos);
+                            throw new RuntimeException("Scanned chunk twice");
+                        }
+                        scannedChunks.add(position);
+                        if (compound.isEmpty()) {
+                            LOGGER.warn("Missing chunk data for chunk {}", pos);
+                            return;
+                        }
 
-                    future.complete(null);
-                });
+                        NbtCompound nbtData = compound.get();
+
+                        try {
+                            if (failed.get()) {
+                                future.complete(null);
+                                return;
+                            }
+                            StorageKey storageKey = new StorageKey("poi", world.getRegistryKey(), world.getDimension().effects().toString());
+
+                            ProtoChunk chunk = ChunkSerializer.deserialize(world, poiStorage, storageKey, pos, nbtData);
+                            if (failed.get()) {
+                                future.complete(null);
+                                return;
+                            }
+                            scanChunk(chunk, blocks);
+                            chunk = null; // Make sure GC can get this earlier, if it runs while this runs than this won't be wasting RAM
+                        } catch (Throwable e) {
+                            LOGGER.error("Failed to deserialize chunk {} with data of size {}", pos, nbtData.getSize());
+                            failed.set(true);
+                            future.completeExceptionally(e);
+                            throw e;
+                        }
+
+                        if (failed.get()) {
+                            future.complete(null);
+                            return;
+                        }
+                        int threadSafeRemaining = remaining.decrementAndGet();
+
+                        long now = System.nanoTime() / 1000;
+                        if (now - lastUpdate.get() >= 100_000) {
+                            if (failed.get()) {
+                                future.complete(null);
+                                return;
+                            }
+                            lastUpdate.set(now);
+                            int scanned = finalChunkCount - threadSafeRemaining;
+                            IslandLogic.runOnNextTick(() -> {
+                                if (failed.get()) return;
+                                setup.progressListener.accept(scanned);
+                            });
+                        }
+
+                        future.complete(null);
+                    });
+                }
+
+            } catch (Throwable e) {  // Catch any errors in this loop iteration
+                failed.set(true);
+                LOGGER.error("Scan crashed in world {}", world.getRegistryKey().getValue(), e);
+                throw new RuntimeException(e);
             }
         }
 
-        try {
-            CompletableFuture.allOf(futures.toArray(new CompletableFuture[0])).join();
-        } catch (Throwable e) {
-            failed.set(true);
-            LOGGER.error("Scan crashed", e);
-            throw new RuntimeException(e);
-        } finally {
-            poiStorage.close();
-            futures.clear();
-        }
+        // Wait for all tasks to complete
+        CompletableFuture.allOf(futures.toArray(new CompletableFuture[0])).join();
+
 
         long end = System.nanoTime() / 1000;
 

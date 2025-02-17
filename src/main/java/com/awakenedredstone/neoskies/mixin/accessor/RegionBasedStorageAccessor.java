@@ -8,7 +8,7 @@ import org.spongepowered.asm.mixin.gen.Accessor;
 import java.nio.file.Path;
 
 @Mixin(RegionBasedStorage.class)
-public interface RegionBasedStorageAccessor {
+public interface RegionBasedStorageAccessor extends IRegionBasedStorageAccessor {
     @Accessor StorageKey getStorageKey();
     @Accessor Path getDirectory();
     @Accessor boolean getDsync();
