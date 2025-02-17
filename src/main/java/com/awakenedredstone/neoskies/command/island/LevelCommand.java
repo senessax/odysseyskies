@@ -238,7 +238,7 @@ public class LevelCommand {
                   .putAny("progress", UnitConvertions.readableNumber(current))
                   .putAny("total", UnitConvertions.readableNumber(total))
                   .build());
-                IslandLogic.getInstance().scheduler.schedule(new Identifier("neoskies", "island-scan/" + island.getIslandId().toString()), 0, () -> display.setText(progress));
+                IslandLogic.getInstance().scheduler.schedule(Identifier.of("neoskies", "island-scan/" + island.getIslandId().toString()), 0, () -> display.setText(progress));
             }, (timeTaken, scannedBlocks) -> {
                 IslandLogic.runOnNextTick(() -> {
                     int scanned = scannedBlocks.values().stream().mapToInt(value -> value).sum();

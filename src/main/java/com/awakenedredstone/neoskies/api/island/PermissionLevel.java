@@ -33,6 +33,6 @@ public abstract class PermissionLevel {
     }
 
     public static PermissionLevel fromValue(String id) {
-        return NeoSkiesRegistries.PERMISSION_LEVELS.get(new Identifier(id));
+        return NeoSkiesRegistries.PERMISSION_LEVELS.get(Identifier.of(id));
     }
 }

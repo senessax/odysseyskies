@@ -57,8 +57,8 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 
-//TODO: Island levels
-//TODO: Advanced island settings
+// TODO: Island levels
+// TODO: Advanced island settings
 public class Island {
     protected final Fantasy fantasy = IslandLogic.getInstance().fantasy;
     protected final Map<Identifier, CurrentSettings> settings = new LinkedHashMap<>();
@@ -96,7 +96,11 @@ public class Island {
 
     public Island(Member owner) {
         this.owner = owner;
-        this.wallet = new NeoSkiesEconomyAccount(islandId, new Identifier(owner.uuid.toString(), islandId.toString()));
+        // Instead of new Identifier(...), use Identifier.of(...)
+        this.wallet = new NeoSkiesEconomyAccount(
+          islandId,
+          Identifier.of(owner.uuid.toString(), islandId.toString())
+        );
         IslandLogic.getInstance().ECONOMY.PROVIDER.getAccounts().computeIfAbsent(islandId, id -> wallet);
     }
 
@@ -111,7 +115,8 @@ public class Island {
         island.freshCreated = nbt.getBoolean("freshCreated");
 
         NbtCompound walletNbt = nbt.getCompound("wallet");
-        Identifier id = new Identifier(walletNbt.getString("id"));
+        // Single-argument version if the string is "namespace:path"
+        Identifier id = Identifier.of(walletNbt.getString("id"));
         long balance = walletNbt.getLong("balance");
         island.wallet = new NeoSkiesEconomyAccount(island.islandId, id, balance);
         IslandLogic.getInstance().ECONOMY.PROVIDER.getAccounts().computeIfAbsent(island.islandId, id1 -> island.wallet);
@@ -142,6 +147,7 @@ public class Island {
             island.bans.add(Member.fromNbt(member));
         }
 
+        // Initialize default IslandSettings
         for (IslandSettings islandSetting : NeoSkiesRegistries.ISLAND_SETTINGS) {
             CurrentSettings currentSettings = new CurrentSettings(islandSetting, islandSetting.getDefaultLevel());
             island.settings.put(islandSetting.getIdentifier(), currentSettings);
@@ -149,7 +155,8 @@ public class Island {
 
         NbtCompound settingsNbt = nbt.getCompound("settings");
         settingsNbt.getKeys().forEach(key -> {
-            Identifier identifier = new Identifier(key);
+            // Single-arg version: parse "namespace:path" into an Identifier
+            Identifier identifier = Identifier.of(key);
             NbtCompound settingsDataNbt = settingsNbt.getCompound(key);
             PermissionLevel level = PermissionLevel.fromValue(settingsDataNbt.getString("permission"));
             IslandSettings islandSettings = NeoSkiesRegistries.ISLAND_SETTINGS.get(identifier);
@@ -161,13 +168,14 @@ public class Island {
 
         island.points = nbt.getLong("points");
         island.level = nbt.getLong("level");
+
         NbtCompound blocksNbt = nbt.getCompound("blocks");
         blocksNbt.getKeys().forEach(key -> {
             int amount = blocksNbt.getInt(key);
-            island.blocks.put(new Identifier(key), amount);
+            island.blocks.put(Identifier.of(key), amount);
         });
 
-        //Sort island block count
+        // Sort island block count
         List<Map.Entry<Identifier, Integer>> entries = new LinkedList<>(island.blocks.entrySet());
         entries.sort(Comparator.comparingInt(Map.Entry::getValue));
         Collections.reverse(entries);
@@ -223,6 +231,7 @@ public class Island {
         }
         nbt.put("bans", bansNbt);
 
+        // Re-initialize island settings for any newly registered IslandSettings
         for (IslandSettings islandSetting : NeoSkiesRegistries.ISLAND_SETTINGS) {
             CurrentSettings currentSettings = new CurrentSettings(islandSetting, islandSetting.getDefaultLevel());
             this.settings.put(islandSetting.getIdentifier(), currentSettings);
@@ -238,6 +247,7 @@ public class Island {
 
         nbt.putLong("points", this.points);
         nbt.putLong("level", this.level);
+
         NbtCompound blocksNbt = new NbtCompound();
         this.blocks.forEach((block, amount) -> blocksNbt.putInt(block.toString(), amount));
         nbt.put("blocks", blocksNbt);
@@ -323,7 +333,11 @@ public class Island {
     public boolean isWithinBorder(BlockPos pos) {
         if (radius <= 0) return true;
         int minY = getOverworld().getBottomY();
-        return new Box(new BlockPos(0, 0, 0)).expand(radius).withMinY(minY - 1).withMaxY(getOverworld().getTopY() + 1).contains(new Vec3d(pos.getX(), pos.getY(), pos.getZ()));
+        return new Box(new BlockPos(0, 0, 0))
+          .expand(radius)
+          .withMinY(minY - 1)
+          .withMaxY(getOverworld().getTopY() + 1)
+          .contains(new Vec3d(pos.getX(), pos.getY(), pos.getZ()));
     }
 
     public Map<Identifier, CurrentSettings> getSettings() {
@@ -338,13 +352,20 @@ public class Island {
     public boolean isInteractionAllowed(Identifier identifier, PermissionLevel source) {
         CurrentSettings settings = getSettings(identifier);
         if (settings == null) {
-            throw new NullPointerException("No Island Settings exist for the provided identifier " + identifier.toString());
+            throw new NullPointerException("No Island Settings exist for: " + identifier);
         }
         return source.getLevel() >= settings.getPermissionLevel().getLevel();
     }
 
     private RuntimeWorldConfig createOverworldConfig() {
-        var biome = IslandLogic.getServer().getRegistryManager().get(RegistryKeys.BIOME).getEntry(IslandLogic.getServer().getRegistryManager().get(RegistryKeys.BIOME).getOrThrow(BiomeKeys.PLAINS));
+        var biome = IslandLogic.getServer().getRegistryManager()
+          .get(RegistryKeys.BIOME)
+          .getEntry(
+            IslandLogic.getServer().getRegistryManager()
+              .get(RegistryKeys.BIOME)
+              .getOrThrow(BiomeKeys.PLAINS)
+          );
+
         FlatChunkGeneratorConfig flat = new FlatChunkGeneratorConfig(Optional.empty(), biome, List.of());
         FlatChunkGenerator generator = new FlatChunkGenerator(flat);
 
@@ -358,7 +379,14 @@ public class Island {
     }
 
     private RuntimeWorldConfig createNetherConfig() {
-        var biome = IslandLogic.getServer().getRegistryManager().get(RegistryKeys.BIOME).getEntry(IslandLogic.getServer().getRegistryManager().get(RegistryKeys.BIOME).getOrThrow(BiomeKeys.NETHER_WASTES));
+        var biome = IslandLogic.getServer().getRegistryManager()
+          .get(RegistryKeys.BIOME)
+          .getEntry(
+            IslandLogic.getServer().getRegistryManager()
+              .get(RegistryKeys.BIOME)
+              .getOrThrow(BiomeKeys.NETHER_WASTES)
+          );
+
         FlatChunkGeneratorConfig flat = new FlatChunkGeneratorConfig(Optional.empty(), biome, List.of());
         FlatChunkGenerator generator = new FlatChunkGenerator(flat);
 
@@ -371,7 +399,14 @@ public class Island {
     }
 
     private RuntimeWorldConfig createEndConfig() {
-        var biome = IslandLogic.getServer().getRegistryManager().get(RegistryKeys.BIOME).getEntry(IslandLogic.getServer().getRegistryManager().get(RegistryKeys.BIOME).getOrThrow(BiomeKeys.THE_END));
+        var biome = IslandLogic.getServer().getRegistryManager()
+          .get(RegistryKeys.BIOME)
+          .getEntry(
+            IslandLogic.getServer().getRegistryManager()
+              .get(RegistryKeys.BIOME)
+              .getOrThrow(BiomeKeys.THE_END)
+          );
+
         FlatChunkGeneratorConfig flat = new FlatChunkGeneratorConfig(Optional.empty(), biome, List.of());
         FlatChunkGenerator generator = new FlatChunkGenerator(flat);
 
@@ -387,21 +422,32 @@ public class Island {
         if (this.islandConfig == null) {
             this.islandConfig = createOverworldConfig();
         }
-        return this.fantasy.getOrOpenPersistentWorld(NeoSkies.id(this.owner.uuid.toString()), this.islandConfig);
+        // NeoSkies.id(...) might internally do "Identifier.of(...)"
+        return this.fantasy.getOrOpenPersistentWorld(
+          NeoSkies.id(this.owner.uuid.toString()),
+          this.islandConfig
+        );
     }
 
     public RuntimeWorldHandle getNetherHandler() {
         if (this.netherConfig == null) {
             this.netherConfig = createNetherConfig();
         }
-        return this.fantasy.getOrOpenPersistentWorld(new Identifier(Constants.NAMESPACE_NETHER, this.owner.uuid.toString()), this.netherConfig);
+        // Instead of new Identifier(...), do Identifier.of(...)
+        return this.fantasy.getOrOpenPersistentWorld(
+          Identifier.of(Constants.NAMESPACE_NETHER, this.owner.uuid.toString()),
+          this.netherConfig
+        );
     }
 
     public RuntimeWorldHandle getEndHandler() {
         if (this.endConfig == null) {
             this.endConfig = createEndConfig();
         }
-        return this.fantasy.getOrOpenPersistentWorld(new Identifier(Constants.NAMESPACE_END, this.owner.uuid.toString()), this.endConfig);
+        return this.fantasy.getOrOpenPersistentWorld(
+          Identifier.of(Constants.NAMESPACE_END, this.owner.uuid.toString()),
+          this.endConfig
+        );
     }
 
     public ServerWorld getOverworld() {
@@ -438,7 +484,8 @@ public class Island {
         return getEnd().getRegistryKey();
     }
 
-    public void updateBlocks(@NotNull Map<Identifier, Integer> blocks) throws EvaluationException, ParseException {
+    public void updateBlocks(@NotNull Map<Identifier, Integer> blocks)
+      throws EvaluationException, ParseException {
         Map<Identifier, Integer> blocksCopy = this.blocks;
         long pointsCopy = this.points;
         long levelCopy = this.level;
@@ -447,19 +494,24 @@ public class Island {
             this.blocks = blocks;
             this.points = 0;
             this.blocks.forEach((block, integer) -> {
-                int points = IslandLogic.getRankingConfig().getPoints(block);
-                this.points += (long) integer * points;
+                int blockPoints = IslandLogic.getRankingConfig().getPoints(block);
+                this.points += (long) integer * blockPoints;
             });
 
-            Expression expression = new Expression(IslandLogic.getRankingConfig().formula, Constants.EXPRESSION_PARSER).and("points", points);
-            EvaluationValue evaluationValue = expression.evaluate();
+            Expression expression = new Expression(
+              IslandLogic.getRankingConfig().formula,
+              Constants.EXPRESSION_PARSER
+            ).and("points", points);
 
+            EvaluationValue evaluationValue = expression.evaluate();
             if (!evaluationValue.isNumberValue()) {
                 throw new IllegalArgumentException("Level formula must be a numeric formula!");
             }
 
             this.level = evaluationValue.getNumberValue().intValue();
+
         } catch (Throwable e) {
+            // revert
             this.blocks = blocksCopy;
             this.points = pointsCopy;
             this.level = levelCopy;
@@ -476,7 +528,10 @@ public class Island {
         if (!isMember(player)) {
             Players.get(this.owner.name).ifPresent(owner -> {
                 if (!player.getUuid().equals(owner.getUuid())) {
-                    owner.sendMessage(Texts.prefixed("message.neoskies.island_visit.visit", map -> map.put("visitor", player.getName().getString())));
+                    owner.sendMessage(Texts.prefixed(
+                      "message.neoskies.island_visit.visit",
+                      map -> map.put("visitor", player.getName().getString())
+                    ));
                 }
             });
         }
@@ -499,9 +554,22 @@ public class Island {
 
     public void onFirstLoad(PlayerEntity player) {
         ServerWorld world = this.getOverworld();
-        StructureTemplate structure = IslandLogic.getServer().getStructureTemplateManager().getTemplateOrBlank(NeoSkies.id("start_island"));
-        StructurePlacementData data = new StructurePlacementData().setMirror(BlockMirror.NONE).setIgnoreEntities(true);
-        structure.place(world, new BlockPos(-7, 65, -7), new BlockPos(0, 0, 0), data, world.getRandom(), Block.NOTIFY_ALL);
+        StructureTemplate structure = IslandLogic.getServer()
+          .getStructureTemplateManager()
+          .getTemplateOrBlank(NeoSkies.id("start_island"));
+
+        StructurePlacementData data = new StructurePlacementData()
+          .setMirror(BlockMirror.NONE)
+          .setIgnoreEntities(true);
+
+        structure.place(
+          world,
+          new BlockPos(-7, 65, -7),
+          new BlockPos(0, 0, 0),
+          data,
+          world.getRandom(),
+          Block.NOTIFY_ALL
+        );
         IslandEvents.ON_ISLAND_FIRST_LOAD.invoker().invoke(player, world, this);
     }
 
@@ -510,9 +578,21 @@ public class Island {
 
         MinecraftServer server = world.getServer();
 
-        StructureTemplate structure = server.getStructureTemplateManager().getTemplateOrBlank(NeoSkies.id("nether_island"));
-        StructurePlacementData data = new StructurePlacementData().setMirror(BlockMirror.NONE).setIgnoreEntities(true);
-        structure.place(world, new BlockPos(-7, 65, -7), new BlockPos(0, 0, 0), data, world.getRandom(), Block.NOTIFY_ALL);
+        StructureTemplate structure = server.getStructureTemplateManager()
+          .getTemplateOrBlank(NeoSkies.id("nether_island"));
+
+        StructurePlacementData data = new StructurePlacementData()
+          .setMirror(BlockMirror.NONE)
+          .setIgnoreEntities(true);
+
+        structure.place(
+          world,
+          new BlockPos(-7, 65, -7),
+          new BlockPos(0, 0, 0),
+          data,
+          world.getRandom(),
+          Block.NOTIFY_ALL
+        );
         IslandEvents.ON_NETHER_FIRST_LOAD.invoker().onLoad(world, this);
 
         this.hasNether = true;
@@ -523,21 +603,37 @@ public class Island {
 
         MinecraftServer server = world.getServer();
 
-        StructureTemplate structure = server.getStructureTemplateManager().getTemplateOrBlank(NeoSkies.id("end_island"));
-        StructurePlacementData data = new StructurePlacementData().setMirror(BlockMirror.NONE).setIgnoreEntities(true);
-        structure.place(world, new BlockPos(-7, 65, -7), new BlockPos(0, 0, 0), data, world.getRandom(), Block.NOTIFY_ALL);
+        StructureTemplate structure = server.getStructureTemplateManager()
+          .getTemplateOrBlank(NeoSkies.id("end_island"));
+
+        StructurePlacementData data = new StructurePlacementData()
+          .setMirror(BlockMirror.NONE)
+          .setIgnoreEntities(true);
+
+        structure.place(
+          world,
+          new BlockPos(-7, 65, -7),
+          new BlockPos(0, 0, 0),
+          data,
+          world.getRandom(),
+          Block.NOTIFY_ALL
+        );
         IslandEvents.ON_END_FIRST_LOAD.invoker().onLoad(world, this);
 
         this.hasEnd = true;
     }
 
     public Identifier getIslandIdentifier() {
-        return new Identifier(owner.uuid.toString(), islandId.toString());
+        // Instead of new Identifier(...), use Identifier.of(...)
+        return Identifier.of(owner.uuid.toString(), islandId.toString());
     }
 
     public EconomyAccount getWallet() {
         if (wallet == null) {
-            wallet = new NeoSkiesEconomyAccount(islandId, new Identifier(owner.uuid.toString(), islandId.toString()));
+            this.wallet = new NeoSkiesEconomyAccount(
+              islandId,
+              Identifier.of(owner.uuid.toString(), islandId.toString())
+            );
         }
         return wallet;
     }
