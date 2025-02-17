@@ -130,7 +130,7 @@ dependencies {
     //endregion
     //endregion
     // region Others
-    modImplementation(include("maven.modrinth:apel:0.1.0+1.20.6") as Any)
+    modImplementation("maven.modrinth:apel:0.1.0+1.20.6")
     modImplementation(include("me.lucko:fabric-permissions-api:${property("fabric_permission_api")}") as Any)
     //endregion
     // region Non mod dependencies
@@ -139,9 +139,7 @@ dependencies {
     //endregion
 
     //region Client
-    "clientImplementation"("dev.deftu:dearimguimc-1.20.6-fabric:0.1.0") {
-        exclude(group = "net.fabricmc.fabric-api")
-    }
+    dependencies.add("clientImplementation", files("libs/DearImGuiMC-0.1.0+1.20.6-fabric.jar"))
     listOf(
         "binding",
         "lwjgl3",

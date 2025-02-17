@@ -1,3 +1,8 @@
+
+[//]: # (Current Bugs:)
+[//]: #
+
+
 [//]: # (A skyblock mod with customizable islands, advanced island protection and support for expansion mods.)
 
 [//]: # ()
@@ -15,8 +20,7 @@
 [//]: # ()
 [//]: # (This mod is a fork of Skylands, and the current island system and island templates are &#40;mostly&#41; from the original mod.)
 
-[//]: # ()
-[//]: # (Please provide feedback on the [discord server]&#40;https://discord.gg/MTqsjwMpN2&#41;, it helps a lot to continue developing the mod)
+
 
 ## About
 <!-- modrinth_exclude.start -->

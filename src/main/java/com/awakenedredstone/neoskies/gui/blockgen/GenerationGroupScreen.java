@@ -2,30 +2,24 @@ package com.awakenedredstone.neoskies.gui.blockgen;
 
 import com.awakenedredstone.neoskies.data.BlockGeneratorLoader;
 import com.awakenedredstone.neoskies.gui.PagedGui;
-import com.awakenedredstone.neoskies.gui.polymer.CBGuiElement;
 import com.awakenedredstone.neoskies.gui.polymer.CBGuiElementBuilder;
 import com.awakenedredstone.neoskies.util.Texts;
 import com.awakenedredstone.neoskies.util.UIUtils;
 import eu.pb4.sgui.api.ClickType;
 import eu.pb4.sgui.api.elements.GuiElementInterface;
 import eu.pb4.sgui.api.gui.GuiInterface;
-import eu.pb4.sgui.api.gui.SimpleGui;
 import eu.pb4.sgui.virtual.inventory.VirtualScreenHandler;
 import net.minecraft.component.DataComponentTypes;
 import net.minecraft.enchantment.Enchantments;
-import net.minecraft.item.Item;
-import net.minecraft.item.ItemStack;
 import net.minecraft.item.Items;
 import net.minecraft.screen.ScreenHandlerType;
 import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.sound.SoundCategory;
 import net.minecraft.sound.SoundEvents;
 import net.minecraft.text.Text;
-import net.minecraft.util.Unit;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.List;
-import java.util.concurrent.atomic.AtomicInteger;
 
 public class GenerationGroupScreen extends PagedGui {
     private final BlockGeneratorLoader.BlockGenerator.GenerationGroup generationGroup;
