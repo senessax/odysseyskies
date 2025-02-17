@@ -1,0 +1,17 @@
+{
+  "schemaVersion": 1,
+  "id": "neoskies-test",
+  "version": "${version}",
+  "name": "NeoSkies TestMod",
+  "description": "The testmod for NeoSkies | Also includes devtools",
+  "authors": [
+    "Awakened Redstone"
+  ],
+  "license": "LGPL-3.0",
+  "environment": "*",
+  "entrypoints": {
+    "main": [
+      "com.awakenedredstone.neoskies.test.NeoSkiesTestMain"
+    ]
+  }
+}

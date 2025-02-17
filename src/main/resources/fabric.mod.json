@@ -1,0 +1,51 @@
+{
+  "schemaVersion": 1,
+  "id": "neoskies",
+  "version": "${version}",
+  "name": "NeoSkies",
+  "description": "A customizable skyblock mod, with full island protection and dedicated worlds for islands",
+  "authors": [
+    "Awakened Redstone"
+  ],
+  "license": "LGPL-3.0",
+  "icon": "assets/neoskies/icon.png",
+  "accessWidener": "neoskies.accesswidener",
+  "environment": "*",
+  "entrypoints": {
+    "main": [
+        "com.awakenedredstone.neoskies.NeoSkies"
+    ],
+    "fabric-datagen": [
+      "com.awakenedredstone.neoskies.datagen.NeoSkiesDatagen"
+    ],
+    "cardinal-components": [
+        "com.awakenedredstone.neoskies.data.components.NeoSkiesComponents"
+    ],
+
+    "client": [
+      "com.awakenedredstone.neoskies.NeoSkiesClient"
+    ]
+  },
+  "mixins": [
+    "neoskies.mixins.json",
+    {
+      "config": "neoskies.client.mixins.json",
+      "environment": "client"
+    }
+  ],
+  "custom": {
+    "cardinal-components": [
+      "neoskies:world_data",
+      "neoskies:player_data"
+    ]
+  },
+  "depends": {
+    "fabricloader": "*",
+    "fabric-api": ">=0.76.0",
+    "minecraft": ">=1.20.5-rc.2",
+    "java": ">=21"
+  },
+  "breaks": {
+    "skylands": "*"
+  }
+}

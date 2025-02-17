@@ -1,0 +1,29 @@
+accessWidener v1 named
+
+# Classes
+accessible class net/minecraft/world/border/WorldBorder$Area
+accessible class net/minecraft/world/border/WorldBorder$MovingArea
+accessible class net/minecraft/world/border/WorldBorder$StaticArea
+accessible class net/minecraft/block/entity/SculkSensorBlockEntity$VibrationCallback
+accessible class net/minecraft/block/entity/SculkShriekerBlockEntity$VibrationCallback
+
+# Methods
+accessible method net/minecraft/server/network/ServerPlayerEntity getPermissionLevel ()I
+accessible method net/minecraft/world/border/WorldBorder$MovingArea <init> (Lnet/minecraft/world/border/WorldBorder;DDJ)V
+accessible method net/minecraft/text/TranslatableTextContent updateTranslations ()V
+accessible method net/minecraft/server/network/ServerPlayerInteractionManager setGameMode (Lnet/minecraft/world/GameMode;Lnet/minecraft/world/GameMode;)V
+accessible method net/minecraft/entity/Entity refreshPosition ()V
+accessible method net/minecraft/entity/player/PlayerEntity dropShoulderEntities ()V
+accessible method net/minecraft/server/network/ServerPlayerEntity forgiveMobAnger ()V
+accessible method net/minecraft/server/world/ThreadedAnvilChunkStorage getPointOfInterestStorage ()Lnet/minecraft/world/poi/PointOfInterestStorage;
+
+# Fields
+accessible field net/minecraft/text/TranslatableTextContent translations Ljava/util/List;
+accessible field net/minecraft/server/world/ThreadedAnvilChunkStorage chunkHolders Lit/unimi/dsi/fastutil/longs/Long2ObjectLinkedOpenHashMap;
+accessible field net/minecraft/world/WorldSaveHandler playerDataDir Ljava/io/File;
+accessible field net/minecraft/server/MinecraftServer saveHandler Lnet/minecraft/world/WorldSaveHandler;
+accessible field net/minecraft/world/storage/StorageIoWorker storage Lnet/minecraft/world/storage/RegionBasedStorage;
+accessible field net/minecraft/world/storage/RegionFile sectorData Ljava/nio/IntBuffer;
+accessible field net/minecraft/state/State owner Ljava/lang/Object;
+accessible field net/minecraft/state/State codec Lcom/mojang/serialization/MapCodec;
+accessible method net/minecraft/loot/context/LootContextTypes register (Ljava/lang/String;Ljava/util/function/Consumer;)Lnet/minecraft/loot/context/LootContextType;

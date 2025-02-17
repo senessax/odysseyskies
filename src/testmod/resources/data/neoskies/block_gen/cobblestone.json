@@ -1,0 +1,39 @@
+{
+  "source": "minecraft:flowing_lava",
+  "target": "#minecraft:water",
+  "generates": [
+    {
+      "blocks": [
+        {
+          "id": "minecraft:mossy_cobblestone",
+          "weight": 1
+        },
+        {
+          "id": "minecraft:barrel",
+          "properties": {
+            "open": "true"
+          },
+          "nbt": {
+            "Items": [
+              {
+                "Slot": 1,
+                "count": 12,
+                "id": "minecraft:coal_ore"
+              }
+            ]
+          },
+          "weight": 1
+        },
+        {
+          "id": "minecraft:diamond_ore",
+          "weight": 1,
+          "predicate": {
+            "condition": "neoskies:island_level",
+            "amount": 3,
+            "islandOnly": false
+          }
+        }
+      ]
+    }
+  ]
+}
