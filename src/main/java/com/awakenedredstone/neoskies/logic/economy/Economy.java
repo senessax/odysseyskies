@@ -11,5 +11,5 @@ public class Economy {
     }
 
     public final NeoSkiesEconomyProvider PROVIDER = new NeoSkiesEconomyProvider();
-    public final EconomyCurrency CURRENCY = new NeoSkiesEconomyCurrency(new Identifier(NeoSkies.MOD_ID, "sky_coin"));
+    public final EconomyCurrency CURRENCY = new NeoSkiesEconomyCurrency(Identifier.tryParse(NeoSkies.MOD_ID + ":sky_coin"));
 }

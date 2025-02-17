@@ -7,6 +7,8 @@ import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.PlayerManager;
 import net.minecraft.server.network.ServerPlayerEntity;
 
+import java.lang.reflect.Field;
+import java.lang.reflect.InvocationTargetException;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Optional;
@@ -58,14 +60,35 @@ public class IslandStuck {
     private void deletePlayer(Member member) {
         MinecraftServer server = IslandLogic.getServer();
         PlayerManager playerManager = server.getPlayerManager();
-        Path playerDataDir = server.saveHandler.playerDataDir.toPath();
+        Path playerDataDir = null;
 
-        playerDataDir.resolve(member.uuid.toString() + ".dat").toFile().delete();
+        try {
+            Field saveHandlerField = MinecraftServer.class.getDeclaredField("saveHandler");
+            saveHandlerField.setAccessible(true);
+            Object saveHandler = saveHandlerField.get(server);
+            Field playerDataDirField = saveHandler.getClass().getDeclaredField("playerDataDir");
+            playerDataDirField.setAccessible(true);
+            playerDataDir = (Path) playerDataDirField.get(saveHandler);
+        } catch (NoSuchFieldException | IllegalAccessException e) {
+            e.printStackTrace();
+        }
+
+        if (playerDataDir != null) {
+            playerDataDir.resolve(member.uuid.toString() + ".dat").toFile().delete();
+        }
+
         ServerPlayerEntity player = playerManager.getPlayer(member.uuid);
         if (player != null) {
             ServerPlayerEntity newPlayer = ((ExtendedPlayerManager) playerManager).resetPlayer(player);
             player.networkHandler.player = newPlayer;
-            server.saveHandler.savePlayerData(newPlayer);
+            try {
+                Field saveHandlerField = MinecraftServer.class.getDeclaredField("saveHandler");
+                saveHandlerField.setAccessible(true);
+                Object saveHandler = saveHandlerField.get(server);
+                saveHandler.getClass().getMethod("savePlayerData", ServerPlayerEntity.class).invoke(saveHandler, newPlayer);
+            } catch (NoSuchFieldException | IllegalAccessException | NoSuchMethodException | InvocationTargetException e) {
+                e.printStackTrace();
+            }
             IslandLogic.getInstance().hub.visit(newPlayer, true);
         }
     }

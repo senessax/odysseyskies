@@ -50,7 +50,7 @@ public class Scheduler {
     }
 
     private Identifier randomIdentifier() {
-        return new Identifier(UUID.randomUUID().toString(), UUID.randomUUID().toString());
+        return Identifier.tryParse(UUID.randomUUID().toString() + ":" + UUID.randomUUID().toString());
     }
 
     record Event(Identifier identifier, long triggerTime, Runnable callback) {

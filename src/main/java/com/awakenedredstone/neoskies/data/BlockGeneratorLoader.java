@@ -3,6 +3,7 @@ package com.awakenedredstone.neoskies.data;
 import com.awakenedredstone.neoskies.NeoSkies;
 import com.awakenedredstone.neoskies.logic.registry.NeoSkiesRegister;
 import com.awakenedredstone.neoskies.mixin.accessor.TagEntryAccessor;
+import com.awakenedredstone.neoskies.mixin.accessor.LootConditionTypeAccessor;
 import com.awakenedredstone.neoskies.util.LinedStringBuilder;
 import com.awakenedredstone.neoskies.util.WeightedRandom;
 import com.google.common.collect.ImmutableMap;
@@ -25,7 +26,6 @@ import net.minecraft.fluid.FluidState;
 import net.minecraft.item.Item;
 import net.minecraft.item.Items;
 import net.minecraft.loot.condition.LootCondition;
-import net.minecraft.loot.condition.LootConditionTypes;
 import net.minecraft.loot.context.LootContext;
 import net.minecraft.loot.context.LootContextParameterSet;
 import net.minecraft.loot.context.LootContextParameters;
@@ -47,19 +47,28 @@ import org.jetbrains.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Objects;
-import java.util.Optional;
+import java.util.*;
 
+/**
+ * Loads custom "block_gen" JSON data, describing how certain fluids/blocks generate new blocks.
+ */
 public class BlockGeneratorLoader extends JsonDataLoader implements IdentifiableResourceReloadListener {
     public static final Logger LOGGER = LoggerFactory.getLogger("BlockGenLoader");
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().disableHtmlEscaping().create();
     public static final List<BlockGenerator> EMPTY = List.of();
 
     public static final BlockGeneratorLoader INSTANCE = new BlockGeneratorLoader();
+
+    /**
+     * A custom Codec to handle ANY loot condition by dispatching to each LootConditionType's MapCodec.
+     * (Requires LootCondition#getType() to be accessible.)
+     */
+    @SuppressWarnings("InvalidMixinCast")
+    private static final Codec<LootCondition> LOOT_CONDITION_CODEC =
+      Registries.LOOT_CONDITION_TYPE.getCodec().dispatch(
+        LootCondition::getType,
+        lootConditionType -> ((LootConditionTypeAccessor) (Object) lootConditionType).getCodec()
+      );
 
     private final Map<Identifier, List<BlockGenerator>> cache = new HashMap<>();
     private Map<TagEntry, List<BlockGenerator>> generatorMap = ImmutableMap.of();
@@ -113,6 +122,9 @@ public class BlockGeneratorLoader extends JsonDataLoader implements Identifiable
         return defaultGeneratorMap;
     }
 
+    /**
+     * Called to trigger block generation if the "source" fluid matches any known rule.
+     */
     public boolean generate(Identifier source, World world, BlockPos pos) {
         cache.computeIfAbsent(source, id -> {
             List<BlockGenerator> generators = new ArrayList<>();
@@ -121,11 +133,13 @@ public class BlockGeneratorLoader extends JsonDataLoader implements Identifiable
                 TagEntry tagEntry = entry.getKey();
                 List<BlockGenerator> value = entry.getValue();
 
+                @SuppressWarnings("InvalidMixinCast")
                 TagEntryAccessor accessor = (TagEntryAccessor) tagEntry;
 
                 FluidState defaultState = Registries.FLUID.get(id).getDefaultState();
                 TagKey<Fluid> tagKey = TagKey.of(RegistryKeys.FLUID, accessor.getId());
-                if ((accessor.isTag() && defaultState.getRegistryEntry().isIn(tagKey)) || accessor.getId().equals(id)) {
+                if ((accessor.isTag() && defaultState.getRegistryEntry().isIn(tagKey))
+                  || accessor.getId().equals(id)) {
                     generators.addAll(value);
                 }
             }
@@ -145,15 +159,25 @@ public class BlockGeneratorLoader extends JsonDataLoader implements Identifiable
         return false;
     }
 
+    /**
+     * Each BlockGenerator is defined by a "source" (a TagEntry for a fluid),
+     * a "target" (some condition for where to place the block), and
+     * a list of "generates" data.
+     */
     public record BlockGenerator(TagEntry source, Target target, List<GenerationGroup> generates) {
         public static final Codec<BlockGenerator> CODEC = RecordCodecBuilder.create(instance ->
           instance.group(
             TagEntry.CODEC.fieldOf("source").forGetter(BlockGenerator::source),
-            Codec.lazyInitialized(() -> Codec.withAlternative(Target.FluidTarget.getCodec(), Target.BlockTarget.getCodec())).fieldOf("target").forGetter(BlockGenerator::target),
+            Codec.lazyInitialized(() ->
+              Codec.withAlternative(Target.FluidTarget.getCodec(), Target.BlockTarget.getCodec())
+            ).fieldOf("target").forGetter(BlockGenerator::target),
             GenerationGroup.CODEC.listOf().fieldOf("generates").forGetter(BlockGenerator::generates)
           ).apply(instance, BlockGenerator::new)
         );
 
+        /**
+         * Get the first valid block from the 'generates' list without actually placing it.
+         */
         public BlockState getBlock(ServerWorld world, BlockPos pos) {
             for (GenerationGroup generate : generates) {
                 if (generate.predicate.isPresent()) {
@@ -174,6 +198,9 @@ public class BlockGeneratorLoader extends JsonDataLoader implements Identifiable
             return Blocks.LODESTONE.getDefaultState();
         }
 
+        /**
+         * Actually place the chosen block in the world (including block entity NBT).
+         */
         public boolean setBlock(ServerWorld world, BlockPos pos) {
             for (GenerationGroup generate : generates) {
                 if (generate.predicate.isPresent()) {
@@ -205,14 +232,22 @@ public class BlockGeneratorLoader extends JsonDataLoader implements Identifiable
             return false;
         }
 
+        /**
+         * The "target" logic that determines if this block generation rule applies
+         * to a fluid or block in a certain spot.
+         */
         public static abstract class Target {
             public abstract @Nullable BlockPos test(World world, BlockPos pos);
             public abstract @NotNull String id();
             public abstract @NotNull Item icon();
             public abstract @NotNull String description();
 
+            /**
+             * Fluid-based target: checks if the fluid around 'pos' matches the given TagEntry's fluid(s).
+             */
             public static class FluidTarget extends Target {
-                public static final Codec<FluidTarget> CODEC = TagEntry.CODEC.comapFlatMap(id -> DataResult.success(new FluidTarget(id)), FluidTarget::getFluid);
+                public static final Codec<FluidTarget> CODEC =
+                  TagEntry.CODEC.comapFlatMap(id -> DataResult.success(new FluidTarget(id)), FluidTarget::getFluid);
 
                 private final TagEntry fluid;
 
@@ -221,7 +256,9 @@ public class BlockGeneratorLoader extends JsonDataLoader implements Identifiable
                 }
 
                 public static Codec<Target> getCodec() {
-                    return (Codec<Target>) (Codec<? extends Target>) CODEC;
+                    @SuppressWarnings("unchecked")
+                    Codec<Target> self = (Codec<Target>) (Codec<? extends Target>) CODEC;
+                    return self;
                 }
 
                 @Override
@@ -252,10 +289,12 @@ public class BlockGeneratorLoader extends JsonDataLoader implements Identifiable
                             continue;
                         }
 
+                        @SuppressWarnings("InvalidMixinCast")
                         TagEntryAccessor accessor = (TagEntryAccessor) fluid;
 
                         TagKey<Fluid> tagKey = TagKey.of(RegistryKeys.FLUID, accessor.getId());
-                        if ((accessor.isTag() && fluidState.getRegistryEntry().isIn(tagKey)) || accessor.getId().equals(Registries.FLUID.getId(fluidState.getFluid()))) {
+                        if ((accessor.isTag() && fluidState.getRegistryEntry().isIn(tagKey))
+                          || accessor.getId().equals(Registries.FLUID.getId(fluidState.getFluid()))) {
                             return blockPos;
                         }
                     }
@@ -264,6 +303,9 @@ public class BlockGeneratorLoader extends JsonDataLoader implements Identifiable
                 }
             }
 
+            /**
+             * Block-based target: checks a "surface" block under 'pos' and a "touching" block to the side.
+             */
             public static class BlockTarget extends Target {
                 public static final Codec<BlockTarget> CODEC = RecordCodecBuilder.create(instance ->
                   instance.group(
@@ -281,7 +323,9 @@ public class BlockGeneratorLoader extends JsonDataLoader implements Identifiable
                 }
 
                 public static Codec<Target> getCodec() {
-                    return (Codec<Target>) (Codec<? extends Target>) CODEC;
+                    @SuppressWarnings("unchecked")
+                    Codec<Target> self = (Codec<Target>) (Codec<? extends Target>) CODEC;
+                    return self;
                 }
 
                 @Override
@@ -313,12 +357,13 @@ public class BlockGeneratorLoader extends JsonDataLoader implements Identifiable
 
                 @Override
                 public BlockPos test(World world, BlockPos pos) {
-                    boolean bl = world.getBlockState(pos.down()).isOf(Registries.BLOCK.get(surface));
+                    boolean isSurface = world.getBlockState(pos.down()).isOf(Registries.BLOCK.get(surface));
 
                     for (Direction direction : FluidBlock.FLOW_DIRECTIONS) {
                         BlockPos blockPos = pos.offset(direction.getOpposite());
-
-                        if (!bl || !world.getBlockState(blockPos).isOf(Registries.BLOCK.get(touching))) continue;
+                        if (!isSurface || !world.getBlockState(blockPos).isOf(Registries.BLOCK.get(touching))) {
+                            continue;
+                        }
                         return blockPos;
                     }
 
@@ -327,13 +372,18 @@ public class BlockGeneratorLoader extends JsonDataLoader implements Identifiable
             }
         }
 
+        /**
+         * A group of possible block "generations," each with an optional loot condition.
+         */
         public static final class GenerationGroup {
             public static final Codec<GenerationGroup> CODEC = RecordCodecBuilder.create(instance ->
               instance.group(
                 Generation.CODEC.listOf().fieldOf("blocks").forGetter(GenerationGroup::blocks),
-                LootConditionTypes.CODEC.optionalFieldOf("predicate").forGetter(GenerationGroup::predicate)
+                // REPLACED LootConditionTypes.CODEC WITH OUR custom LOOT_CONDITION_CODEC
+                LOOT_CONDITION_CODEC.optionalFieldOf("predicate").forGetter(GenerationGroup::predicate)
               ).apply(instance, GenerationGroup::new)
             );
+
             private final List<Generation> blocks;
             private final Optional<LootCondition> predicate;
             private final WeightedRandom<Generation> weightedRandom;
@@ -356,6 +406,9 @@ public class BlockGeneratorLoader extends JsonDataLoader implements Identifiable
                 return weightedRandom;
             }
 
+            /**
+             * Picks a valid Generation from 'blocks' (by weight) if its nested condition passes.
+             */
             public Generation getRandomData(ServerWorld world, BlockPos pos) {
                 for (Generation block : blocks) {
                     if (block.predicate.isPresent()) {
@@ -368,7 +421,6 @@ public class BlockGeneratorLoader extends JsonDataLoader implements Identifiable
                             continue;
                         }
                     }
-
                     weightedRandom.add(block.weight, block);
                 }
 
@@ -386,8 +438,8 @@ public class BlockGeneratorLoader extends JsonDataLoader implements Identifiable
                 if (obj == this) return true;
                 if (obj == null || obj.getClass() != this.getClass()) return false;
                 var that = (GenerationGroup) obj;
-                return Objects.equals(this.blocks, that.blocks) &&
-                  Objects.equals(this.weightedRandom, that.weightedRandom);
+                return Objects.equals(this.blocks, that.blocks)
+                  && Objects.equals(this.weightedRandom, that.weightedRandom);
             }
 
             @Override
@@ -404,21 +456,35 @@ public class BlockGeneratorLoader extends JsonDataLoader implements Identifiable
             }
         }
 
-        public record Generation(BlockState state, Optional<NbtCompound> nbt, int weight, Optional<LootCondition> predicate) {
-            public static final MapCodec<BlockState> BLOCK_STATE_CODEC = Registries.BLOCK.getCodec().dispatchMap("id", state -> state.owner, owner -> {
-                BlockState state = owner.getDefaultState();
-                if (state.getEntries().isEmpty()) {
-                    return MapCodec.unit(state);
-                }
-                return state.codec.codec().optionalFieldOf("properties").xmap(optional -> optional.orElse(state), Optional::of);
-            }).stable();
+        /**
+         * One possible block to place, with a weight and optional loot condition + optional NBT.
+         */
+        public record Generation(
+          BlockState state,
+          Optional<NbtCompound> nbt,
+          int weight,
+          Optional<LootCondition> predicate
+        ) {
+            // Custom MapCodec for block states with property support
+            public static final MapCodec<BlockState> BLOCK_STATE_CODEC = Registries.BLOCK.getCodec()
+              .dispatchMap("id", st -> st.owner, owner -> {
+                  BlockState state = owner.getDefaultState();
+                  if (state.getEntries().isEmpty()) {
+                      return MapCodec.unit(state);
+                  }
+                  return state.codec.codec()
+                    .optionalFieldOf("properties")
+                    .xmap(opt -> opt.orElse(state), Optional::of);
+              })
+              .stable();
 
             public static final Codec<Generation> CODEC = RecordCodecBuilder.create(instance ->
               instance.group(
                 RecordCodecBuilder.of(Generation::state, BLOCK_STATE_CODEC),
                 NbtCompound.CODEC.optionalFieldOf("nbt").forGetter(Generation::nbt),
                 Codec.INT.fieldOf("weight").forGetter(Generation::weight),
-                LootConditionTypes.CODEC.optionalFieldOf("predicate").forGetter(Generation::predicate)
+                // REPLACED LootConditionTypes.CODEC WITH LOOT_CONDITION_CODEC
+                LOOT_CONDITION_CODEC.optionalFieldOf("predicate").forGetter(Generation::predicate)
               ).apply(instance, Generation::new)
             );
         }

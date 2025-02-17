@@ -6,6 +6,7 @@
   "mixins": [
     "FluidBlockMixin",
     "accessor.FluidBlockAccessor",
+    "accessor.LootConditionTypeAccessor",
     "accessor.RegionBasedStorageAccessor",
     "accessor.ServerChunkManagerAccessor",
     "accessor.TagEntryAccessor",

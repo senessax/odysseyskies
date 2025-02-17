@@ -24,8 +24,7 @@ public class NeoSkiesBlockTags {
     public static final TagKey<Block> RESPAWN_ANCHOR = TagKey.of(RegistryKeys.BLOCK, NeoSkies.id("protection/use/respawn_anchor"));
     public static final TagKey<Block> SPAWNER = TagKey.of(RegistryKeys.BLOCK, NeoSkies.id("protection/use/spawner"));
     public static final TagKey<Block> SIGNS = TagKey.of(RegistryKeys.BLOCK, NeoSkies.id("protection/use/signs"));
-
-    public static final TagKey<Block> UNWAXED_COPPER_BLOCKS = TagKey.of(RegistryKeys.BLOCK, new Identifier("c", "copper_blocks/unwaxed"));
-    public static final TagKey<Block> WAXED_COPPER_BLOCKS = TagKey.of(RegistryKeys.BLOCK, new Identifier("c", "copper_blocks/waxed"));
-    public static final TagKey<Block> COPPER_BLOCKS = TagKey.of(RegistryKeys.BLOCK, new Identifier("c", "copper_blocks"));
+    public static final TagKey<Block> UNWAXED_COPPER_BLOCKS = TagKey.of(RegistryKeys.BLOCK, Identifier.of("c", "copper_blocks/unwaxed"));
+    public static final TagKey<Block> WAXED_COPPER_BLOCKS = TagKey.of(RegistryKeys.BLOCK, Identifier.of("c", "copper_blocks/waxed"));
+    public static final TagKey<Block> COPPER_BLOCKS = TagKey.of(RegistryKeys.BLOCK, Identifier.of("c", "copper_blocks"));
 }
