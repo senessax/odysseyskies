@@ -5,6 +5,7 @@
   "compatibilityLevel": "JAVA_17",
   "mixins": [
     "FluidBlockMixin",
+    "ServerChunkManagerMixin",
     "accessor.FluidBlockAccessor",
     "accessor.IServerChunkManagerAccessor",
     "accessor.RegionBasedStorageAccessor",

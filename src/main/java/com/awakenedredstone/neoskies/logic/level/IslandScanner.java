@@ -5,6 +5,7 @@ import com.awakenedredstone.neoskies.logic.Island;
 import com.awakenedredstone.neoskies.logic.IslandLogic;
 import com.awakenedredstone.neoskies.logic.Member;
 import com.awakenedredstone.neoskies.mixin.accessor.IRegionBasedStorageAccessor;
+import com.awakenedredstone.neoskies.mixin.accessor.IServerChunkManager;
 import com.awakenedredstone.neoskies.mixin.accessor.ServerChunkManagerAccessor;
 import com.awakenedredstone.neoskies.util.Texts;
 import com.ezylang.evalex.EvaluationException;
@@ -101,6 +102,11 @@ public class IslandScanner implements AutoCloseable {
                 Thread.currentThread().interrupt();
             }
         });
+    }
+
+    private void getChunkHolderPublic(ServerChunkManager chunkManager) {
+        Map<Long, ChunkHolder> chunkHolders = ((IServerChunkManager) chunkManager).getChunkHoldersPublic();
+        // Use chunkHolders as needed
     }
 
     public void close() {
