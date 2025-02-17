@@ -5,12 +5,9 @@
   "compatibilityLevel": "JAVA_17",
   "mixins": [
     "FluidBlockMixin",
-    "ServerChunkManagerMixin",
     "accessor.FluidBlockAccessor",
-    "accessor.IServerChunkManagerAccessor",
     "accessor.RegionBasedStorageAccessor",
     "accessor.ServerChunkManagerAccessor",
-    "accessor.ServerChunkManagerMixin",
     "accessor.TagEntryAccessor",
     "block.EndPortalBlockMixin",
     "block.FireBlockMixin",

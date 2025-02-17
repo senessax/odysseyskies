@@ -3,6 +3,7 @@ package com.awakenedredstone.neoskies.logic;
 import com.awakenedredstone.neoskies.config.IslandRankingConfig;
 import com.awakenedredstone.neoskies.config.MainConfig;
 import com.awakenedredstone.neoskies.logic.economy.Economy;
+import com.awakenedredstone.neoskies.logic.level.IslandScanner;
 import com.awakenedredstone.neoskies.util.NbtMigrator;
 import com.awakenedredstone.neoskies.util.PreInitData;
 import com.awakenedredstone.neoskies.util.Scheduler;
@@ -24,6 +25,7 @@ public class IslandLogic {
     public final Hub hub = new Hub();
     public final Invites invites = new Invites();
     public final Scheduler scheduler = new Scheduler();
+    public final IslandScanner islandScanner = new IslandScanner();
 
     public IslandLogic(MinecraftServer server) {
         this.server = server;
