@@ -6,7 +6,7 @@
 [//]: # (A skyblock mod with customizable islands, advanced island protection and support for expansion mods.)
 
 [//]: # ()
-[//]: # (NeoSkies provides it's own API and registries for other mods to add content and features and integrate with the island system.)
+[//]: # (Provides it's own API and registries for other mods to add content and features and integrate with the island system.)
 
 [//]: # ()
 [//]: # (Each island have their own settings, those settings allow the owner to decide how other players can interact with the island, such as allowing interaction with doors, redstone, containers, etc.)
@@ -27,10 +27,10 @@
 <img align="right" width="128" src="src/main/resources/assets/neoskies/icon.png">
 <!-- modrinth_exclude.end -->
 
-NeoSkies is a skyblock Minecraft mod, with island settings, teams, island upgrades, dedicated worlds for each island, economy integration (with Common Economy API) and more!
+Is a skyblock Minecraft mod, with island settings, teams, island upgrades, dedicated worlds for each island, economy integration (with Common Economy API) and more!
 This is a server-side mod, fully compatible with **vanilla** clients
 
-[//]: # ([![Modrinth Page]&#40;https://raw.githubusercontent.com/intergrav/devins-badges/v2/assets/cozy/available/modrinth_64h.png&#41;]&#40;https://modrinth.com/mod/neoskies&#41;)
+[//]: # ([![NeoSkies: Modrinth Page]&#40;https://raw.githubusercontent.com/intergrav/devins-badges/v2/assets/cozy/available/modrinth_64h.png&#41;]&#40;https://modrinth.com/mod/neoskies&#41;)
 
 ### User Commands
 
