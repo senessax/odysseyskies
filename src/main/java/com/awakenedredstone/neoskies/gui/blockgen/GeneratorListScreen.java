@@ -1,7 +1,7 @@
 package com.awakenedredstone.neoskies.gui.blockgen;
 
 import com.awakenedredstone.neoskies.data.BlockGeneratorLoader;
-import com.awakenedredstone.neoskies.gui.polymer.CBGuiElement;
+// import com.awakenedredstone.neoskies.gui.polymer.CBGuiElement;
 import com.awakenedredstone.neoskies.gui.polymer.CBGuiElementBuilder;
 import com.awakenedredstone.neoskies.util.Texts;
 import com.awakenedredstone.neoskies.util.UIUtils;

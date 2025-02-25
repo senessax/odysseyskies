@@ -22,7 +22,7 @@ import net.minecraft.util.Formatting;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.List;
-import java.util.concurrent.atomic.AtomicInteger;
+// import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.IntFunction;
 
 public abstract class PagedGui extends SimpleGui {
